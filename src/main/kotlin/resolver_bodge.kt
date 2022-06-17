@@ -24,10 +24,10 @@ import kotlin.reflect.typeOf
 /**
  * An alternative for [InputValuesDSL.arg]
  */
-fun <T : Any> ResolverDSL.Target.arg(
-    kClass: KClass<T>,
+fun <T> ResolverDSL.Target.arg(
+    kClass: KClass<T & Any>,
     kType: KType? = null,
-    block: InputValueDSL<T>.() -> Unit
+    block: InputValueDSL<T & Any>.() -> Unit
 ) {
     val inputValueDSL = InputValueDSL(kClass, kType).apply(block)
 
@@ -37,10 +37,13 @@ fun <T : Any> ResolverDSL.Target.arg(
 /**
  * An alternative for [InputValuesDSL.arg]
  */
-inline fun <reified T : Any> ResolverDSL.Target.arg(
-    noinline block: InputValueDSL<T>.() -> Unit
+inline fun <reified T> ResolverDSL.Target.arg(
+    noinline block: InputValueDSL<T & Any>.() -> Unit
 ) {
-    arg(T::class, typeOf<T>(), block)
+    val inputValueDSL = InputValueDSL(typeOf<T>().jvmErasure, typeOf<T>())
+    @Suppress("UNCHECKED_CAST")
+    block(inputValueDSL as InputValueDSL<T & Any>)
+    addInputValues(listOf(inputValueDSL.toKQLInputValue()))
 }
 
 /**
