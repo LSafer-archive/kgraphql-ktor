@@ -21,6 +21,8 @@ dependencies {
     implementation("io.ktor:ktor-server-core-jvm:2.0.2")
     implementation("com.apurebase:kgraphql:0.17.14")
     implementation("com.apurebase:kgraphql-ktor:0.17.14")
+    // needed by kgraphql
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.13.3")
 
     testImplementation(kotlin("test"))
 }
