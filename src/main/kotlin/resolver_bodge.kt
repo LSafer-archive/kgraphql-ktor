@@ -8,6 +8,7 @@ import com.apurebase.kgraphql.schema.dsl.ResolverDSL
 import com.apurebase.kgraphql.schema.dsl.types.InputValueDSL
 import com.apurebase.kgraphql.schema.model.FunctionWrapper
 import com.apurebase.kgraphql.schema.model.InputValueDef
+import com.apurebase.kgraphql.schema.structure.InputValue
 import com.apurebase.kgraphql.schema.structure.validateName
 import com.fasterxml.jackson.databind.ObjectWriter
 import kotlin.reflect.KClass
@@ -21,6 +22,10 @@ import kotlin.reflect.jvm.jvmErasure
 import kotlin.reflect.jvm.reflect
 import kotlin.reflect.typeOf
 
+class ArgDelegate<T>(
+    val dsl: InputValueDSL<T & Any>
+)
+
 /**
  * An alternative for [InputValuesDSL.arg]
  */
@@ -28,10 +33,11 @@ fun <T> ResolverDSL.Target.arg(
     kClass: KClass<T & Any>,
     kType: KType? = null,
     block: InputValueDSL<T & Any>.() -> Unit
-) {
+): ArgDelegate<T> {
     val inputValueDSL = InputValueDSL(kClass, kType).apply(block)
 
     addInputValues(listOf(inputValueDSL.toKQLInputValue()))
+    return ArgDelegate(inputValueDSL)
 }
 
 /**
@@ -39,11 +45,12 @@ fun <T> ResolverDSL.Target.arg(
  */
 inline fun <reified T> ResolverDSL.Target.arg(
     noinline block: InputValueDSL<T & Any>.() -> Unit
-) {
+): ArgDelegate<T> {
     val inputValueDSL = InputValueDSL(typeOf<T>().jvmErasure, typeOf<T>())
     @Suppress("UNCHECKED_CAST")
     block(inputValueDSL as InputValueDSL<T & Any>)
     addInputValues(listOf(inputValueDSL.toKQLInputValue()))
+    return ArgDelegate(inputValueDSL)
 }
 
 /**
@@ -53,16 +60,29 @@ class ResolveScope(
     val context: Context,
     val arguments: Map<String, Any?>
 ) {
+    fun <T> arg(
+        klass: KClass<*>,
+        type: KType?,
+        name: String
+    ): T {
+        val argument = arguments[name]
+        if (argument === null && type?.isMarkedNullable == false)
+            error("Nullable argument is used as a non-nullable.")
+        if (!klass.isInstance(argument))
+            error("Argument of type ${argument?.javaClass} is used as ${klass.simpleName}")
+        @Suppress("UNCHECKED_CAST")
+        return argument as T
+    }
+
     @Suppress("UNCHECKED_CAST")
     inline fun <reified T> arg(name: String): T {
         val type = typeOf<T>()
-        val argument = arguments[name]
-        if (argument === null && !type.isMarkedNullable)
-            error("Nullable argument is used as a non-nullable.")
         val klass = type.jvmErasure
-        if (!klass.isInstance(argument))
-            error("Argument of type ${argument?.javaClass} is used as ${klass.simpleName}")
-        return argument as T
+        return arg(klass, type, name)
+    }
+
+    operator fun <T> ArgDelegate<T>.unaryMinus(): T {
+        return arg(dsl.kClass, dsl.kType, dsl.name)
     }
 }
 
