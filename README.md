@@ -4,7 +4,7 @@ A simple integration for kgraphql and ktor
 
 > NOTE: this library is just a bodging for kgraphql
 >       and is not intended to be stable!
->       I might create a better library in the future.
+>       I made a better library [Kaguya](https://github.com/cufyorg/kaguya)
 
 ### Introduction
 
